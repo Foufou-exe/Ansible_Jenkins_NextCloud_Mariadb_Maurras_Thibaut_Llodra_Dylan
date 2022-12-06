@@ -1,0 +1,49 @@
+- hosts: master
+  become: yes
+  tasks:
+    - name: Apt Update
+      apt:
+        update_cache: yes
+
+    - name: Apt Upgrade
+      apt:
+        upgrade: dist
+
+    - name: install prerequisite packages
+      apt:
+        name:
+          - apt-transport-https
+          - curl
+          - gnupg
+        state: present
+    
+    - name: Re Update depot
+      apt:
+        update_cache: yes
+        
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: 'deb https://pkg.jenkins.io/debian-stable binary/'
+        state: present
+
+    - name: Add Jenkins signing key
+      apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
+        state: present
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Enable Jenkins to use port 8080
+      lineinfile:
+        path: /etc/default/jenkins
+        regexp: '^HTTP_PORT=.*'
+        line: 'HTTP_PORT=8080'
+        backup: yes
+        notify: restart jenkins
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
