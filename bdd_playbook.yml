@@ -1,0 +1,70 @@
+- name: nextcloud mariadb deploy 
+  hosts: bdd
+  become: true
+  vars:
+    - nextcloud_password: Bloch2021
+
+  tasks:
+  - name: Update apt packages
+    become: true
+    apt:
+      update_cache: yes
+      upgrade: yes
+  
+  - name: Install MariaDB Packages
+    apt: name={{item}} state=installed
+    with_items:
+      - mariadb-client
+      - mariadb-common
+      - mariadb-server
+      - python-mysqldb
+      - python3-pymysql
+
+  - name: Create MariaDB Directories
+    file: path=/data/{{item}} state=directory owner=mysql group=mysql recurse=yes
+    with_items:
+      - db
+      - log
+  
+  - name: Start MariaDB
+    service:
+      name=mysql
+      state=started
+
+  - name: Delete anonymous users
+    mysql_user:
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+      name: ""
+      state: "absent"
+
+  - name: Create nextcloud database
+    mysql_db:
+      name: nextcloud
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+      state: present
+
+  - name: Create user for nextcloud@localhost db
+    mysql_user:
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+      name: "nextcloud"
+      host: localhost
+      password: "{{ nextcloud_password }}"
+      state: present
+      priv: "nextcloud.*:ALL"
+
+  - name: Create user for nextcloud db
+    mysql_user:
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+      name: "nextcloud"
+      host: "%"
+      password: "{{ nextcloud_password }}"
+      state: present
+      priv: "nextcloud.*:ALL"
+
+  - name: configure bind mariadb sed
+    shell: "sed -i 's/bind-address/\\#bind-address/g' /etc/mysql/mariadb.conf.d/50-server.cnf"
+
+  - name: Restart MariaDB
+    service:
+      name: mysql
+      state: restarted

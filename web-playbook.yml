@@ -1,0 +1,121 @@
+- name: nextcloud web deploy 
+  hosts: web
+  become: true
+  vars:
+    - root_password: Bloch2020
+    - nextcloud_password: Bloch2021
+
+  tasks:
+  - name: Install web service
+    apt: name={{item}} state=latest update_cache=yes
+    with_items:
+      - apache2
+      - php7.0
+      - php7.0-fpm
+
+  - name: desactivate_apache_mods php7.0-fpm
+    shell: "a2dismod php7.0"
+    ignore_errors: true
+  
+  - name: desactivate_apache_mods mpm_prefork
+    shell: "a2dismod mpm_prefork"
+    ignore_errors: true
+
+  - name: desactivate_apache_mods mpm_event
+    shell: "a2dismod mpm_event"
+    ignore_errors: true
+
+  - name: activate_apache_mods mpm_worker
+    shell: "a2enmod mpm_worker"
+
+  - name: activate_apache_mods proxy_fcgi
+    shell: "a2enmod proxy_fcgi"
+  
+  - name: activate_apache_configs php7.0-fpm
+    shell: "a2enconf php7.0-fpm"
+
+  - name: Restart apache2
+    service:
+      name=apache2
+      state=restarted
+  
+  - name: start php7.0 fpm
+    shell: "/etc/init.d/php7.0-fpm start"
+
+  - name: Install web dependency nextcloud
+    apt: name={{item}} state=latest update_cache=yes
+    with_items:
+      - php7.0-cli
+      - php-xml
+      - php-zip
+      - php-curl
+      - php-gd
+      - php-cgi
+      - php-mysql
+      - php-mbstring
+
+  - name: configure php sed timezone
+    shell: "sed -i 's/date.timezone/;date.timezone/g' /etc/php/7.0/fpm/php.ini"
+  - name: configure php sed memory_limit
+    shell: "sed -i 's/memory_limit/;memory_limit/g' /etc/php/7.0/fpm/php.ini"
+  - name: configure php sed upload_max_filesize
+    shell: "sed -i 's/upload_max_filesize/;upload_max_filesize/g' /etc/php/7.0/fpm/php.ini"
+  - name: configure php sed post_max_size
+    shell: "sed -i 's/post_max_size/;post_max_size/g' /etc/php/7.0/fpm/php.ini"
+  - name: configure php sed max_execution_time    
+    shell: "sed -i 's/max_execution_time/;max_execution_time/g' /etc/php/7.0/fpm/php.ini"
+
+  - name: configure php echo max_execution_time    
+    shell: 'echo "date.timezone = Europe/Paris" >> /etc/php/7.0/fpm/php.ini'
+  - name: configure php echo max_execution_time
+    shell: 'echo "memory_limit = 512M" >> /etc/php/7.0/fpm/php.ini'
+  - name: configure php echo max_execution_time
+    shell: 'echo "upload_max_filesize = 500M" >> /etc/php/7.0/fpm/php.ini'
+  - name: configure php echo max_execution_time
+    shell: 'echo "post_max_size = 500M" >> /etc/php/7.0/fpm/php.ini'
+  - name: configure php echo max_execution_time
+    shell: 'echo "max_execution_time = 300" >> /etc/php/7.0/fpm/php.ini'
+
+  - name: Restart apache2
+    service:
+      name=apache2
+      state=restarted
+
+  - name: Install dependency nextcloud
+    apt: name={{item}} state=latest update_cache=yes
+    with_items:
+      - unzip
+      - curl
+      - wget
+
+  - name: Unarchive a file that needs to be downloaded (added in 2.0)
+    ansible.builtin.unarchive:
+      src: https://download.nextcloud.com/server/releases/nextcloud-15.0.14.zip
+      dest: /root/.
+      remote_src: yes
+  
+  - name: deplace le fichier nextcloud dans le web repertory
+    shell: 'mv nextcloud /var/www/nextcloud'
+  - name: change le grouê et le owner du ficher
+    shell: 'chown -R www-data:www-data /var/www/nextcloud'
+  - name: chage les permission du fichier nextcloud
+    shell: 'chmod -R 755 /var/www/nextcloud'
+
+  - name: creation du fichier de conf
+    shell: 'echo "Alias	/nextcloud /var/www/nextcloud" > /etc/apache2/conf-available/nextcloud.conf'
+  - name: add du fichier de conf2
+    shell: 'echo "<Directory /var/www/nextcloud>" >> /etc/apache2/conf-available/nextcloud.conf'
+  - name: add du fichier de conf3
+    shell: 'echo "require all granted" >> /etc/apache2/conf-available/nextcloud.conf'
+  - name: add du fichier de conf4
+    shell: 'echo "</Directory>" >> /etc/apache2/conf-available/nextcloud.conf'
+  - name: add du fichier de conf5
+    shell: 'a2enconf nextcloud.conf'
+  
+  - name: Restart apache2
+    service:
+      name: apache2
+      state: restarted
+
+  - name: Restart php7.0-fpm
+    shell: '/etc/init.d/php7.0-fpm restart'
